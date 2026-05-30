@@ -10,7 +10,7 @@ export class AuthRepository {
       `SELECT * FROM users WHERE email = ?`,
       [email],
     );
-    return rows[0];
+    return rows[0] ?? null;
   }
 
   async findById(id: number) {
@@ -18,7 +18,7 @@ export class AuthRepository {
       `SELECT id, name, email, role, created_at FROM users WHERE id = ?`,
       [id],
     );
-    return rows[0];
+    return rows[0] ?? null;
   }
 
   async createUser(
@@ -26,13 +26,11 @@ export class AuthRepository {
     email: string,
     password: string,
     role: string,
-  ) {
+  ): Promise<number> {
     const [result]: any = await this.db.query(
-      `INSERT INTO users (name, email, password, role)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)`,
       [name, email, password, role],
     );
-
     return result.insertId;
   }
 }

@@ -4,11 +4,11 @@ export const dbProvider = {
   provide: "DB_POOL",
   useFactory: () => {
     return createPool({
-      host: "localhost",
-      user: "orion_user",
+      host: process.env.DB_HOST ?? "localhost",
+      user: process.env.DB_USER ?? "orion_user",
       password: process.env.DB_PW,
-      database: "orion",
-      port: 3306,
+      database: process.env.DB_NAME ?? "orion",
+      port: Number(process.env.DB_PORT) || 3306,
       waitForConnections: true,
       connectionLimit: 10,
     });
