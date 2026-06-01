@@ -14,7 +14,6 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`YAYYY, Server running on http://localhost:${port}`);

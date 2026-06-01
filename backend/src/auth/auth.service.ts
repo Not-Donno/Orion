@@ -1,69 +1,84 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-} from "@nestjs/common";
-import * as bcrypt from "bcrypt";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { AuthRepository } from "./auth.repository";
-import { RegisterDto } from "./dto/register.dto";
-import { LoginDto } from "./dto/login.dto";
+import * as bcrypt from "bcrypt";
+import { Inject } from "@nestjs/common";
+import type { Pool } from "mysql2/promise";
 
 @Injectable()
 export class AuthService {
   constructor(
-    private jwtService: JwtService,
-    private authRepo: AuthRepository,
+    private readonly jwtService: JwtService,
+
+    @Inject("DB_POOL")
+    private readonly db: Pool,
   ) {}
 
-  async register(dto: RegisterDto) {
-    const { name, email, password, role } = dto;
+  // ---------------- REGISTER ----------------
+  async register(dto: any) {
+    const hashed = await bcrypt.hash(dto.password, 10);
 
-    const existing = await this.authRepo.findByEmail(email);
-    if (existing) throw new ConflictException("User already exists");
-
-    const hashed = await bcrypt.hash(password, 10);
-    const userId = await this.authRepo.createUser(
-      name,
-      email,
-      hashed,
-      role ?? "CUSTOMER",
+    const [result]: any = await this.db.query(
+      `INSERT INTO users (name, email, password, role)
+       VALUES (?, ?, ?, ?)`,
+      [dto.name, dto.email, hashed, dto.role || "CUSTOMER"],
     );
-    const user = await this.authRepo.findById(userId);
+
+    const user = {
+      id: result.insertId,
+      name: dto.name,
+      email: dto.email,
+      role: dto.role || "CUSTOMER",
+    };
 
     return {
       user,
-      token: this.signToken(user),
+      token: this.jwtService.sign({
+        sub: user.id,
+        email: user.email,
+        role: user.role, // 🔥 MUST EXIST
+      }),
     };
   }
 
-  async login(dto: LoginDto) {
-    const { email, password } = dto;
+  // ---------------- LOGIN ----------------
+  async login(dto: any) {
+    const [rows]: any = await this.db.query(
+      `SELECT * FROM users WHERE email = ?`,
+      [dto.email],
+    );
 
-    const user = await this.authRepo.findByEmail(email);
+    const user = rows[0];
+
     if (!user) throw new UnauthorizedException("Invalid credentials");
 
-    const match = await bcrypt.compare(password, user.password);
+    const match = await bcrypt.compare(dto.password, user.password);
+
     if (!match) throw new UnauthorizedException("Invalid credentials");
 
-    // Return user without password (non-mutating)
-    const { password: _pw, ...safeUser } = user;
-
     return {
-      user: safeUser,
-      token: this.signToken(safeUser),
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      token: this.jwtService.sign({
+        sub: user.id,
+        email: user.email,
+        role: user.role, // 🔥 MUST EXIST
+      }),
     };
   }
 
+  // ---------------- ME ----------------
   async me(userId: number) {
-    return this.authRepo.findById(userId);
-  }
+    const [rows]: any = await this.db.query(
+      `SELECT id, name, email, role, created_at
+       FROM users
+       WHERE id = ?`,
+      [userId],
+    );
 
-  private signToken(user: { id: number; email: string; role: string }) {
-    return this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    return rows[0] || null;
   }
 }

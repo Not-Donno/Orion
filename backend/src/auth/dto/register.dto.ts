@@ -1,9 +1,9 @@
 import {
   IsEmail,
+  IsIn,
+  IsOptional,
   IsString,
   MinLength,
-  IsOptional,
-  IsIn,
 } from "class-validator";
 
 export class RegisterDto {
@@ -18,6 +18,6 @@ export class RegisterDto {
   password!: string;
 
   @IsOptional()
-  @IsIn(["CUSTOMER", "ADMIN"])
+  @IsIn(["CUSTOMER", "OWNER", "STAFF"])
   role?: string;
 }

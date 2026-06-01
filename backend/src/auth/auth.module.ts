@@ -9,7 +9,7 @@ import { DbModule } from "../db/db.module";
 
 @Module({
   imports: [
-    DbModule, // ← was missing — DB_POOL injection needs this
+    DbModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: () => ({
